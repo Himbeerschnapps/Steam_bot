@@ -1,7 +1,7 @@
 import asyncio                  # запуск асинхронного кода
 import aiohttp                  # запросы к Steam API
 import aiogram                  # для самого бота
-from aiogram import Bot, Dispatcher, types
+from aiogram import Bot, Dispatcher, Types
 from aiogram.filters import Command
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 

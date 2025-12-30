@@ -1,11 +1,11 @@
 import asyncio                  # запуск асинхронного кода
-import aiohttp                  # запросы к Steam API
+import aiohttp                  # запросы к steam api
 import aiogram                  # для самого бота
 from aiogram import Bot, Dispatcher, Types
 from aiogram.filters import Command
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 
-# для управления бото (токен взят у BotFather)
+# для управления бото (токен взят у botfather в тг)
 BOT_TOKEN = "8089522459:AAGhQWkbu0x3ZUL66CbNPr9CoHSwrh_oQns"
 
 # объект бота
@@ -14,10 +14,10 @@ bot = Bot(token=BOT_TOKEN)
 # для управленния командами
 dp = Dispatcher()
 
-# URL Steam API для новинок и скидок
+# ссылка steam api для новинок и скидок
 STEAM_FEATURED_URL = "https://store.steampowered.com/api/featuredcategories"
 
-# URL Steam API для поиска игр по жанрам
+# аналогично для игр по жанрам
 STEAM_SEARCH_URL = "https://store.steampowered.com/api/storesearch"
 
 GENRES = {
@@ -64,6 +64,8 @@ async def help_cmd(message: types.Message):
 # 3. команда /discount для скидок
 
 # команда /recomendations 
+# только на этапе конечной выверки я заметила, что допустила грамматическую ошибку, но решила, что лучше уже это не трогать
+
 @dp.message(Command("recomendations"))
 async def recomendations(message: types.Message):
     keyboard = InlineKeyboardMarkup(
@@ -90,10 +92,115 @@ async def genre_selected(callback: types.CallbackQuery):
     text = "Рекомендации:\n\n"
     for game in games:
         text += (
-            f"🎮 <a href='{game['url']}'>{game['name']}</a>\n"
-            f"💰 {game['price']}\n\n"
+            f"<a href='{game['url']}'>{game['name']}</a>\n"
+            f"{game['price']}\n\n"
         )
 
     await callback.message.answer(text, parse_mode="HTML")
     await callback.answer()   
 
+# команда /new 
+@dp.message(Command("new"))
+async def new_games(message: types.Message):
+    games = await get_featured_games("new_releases")
+
+    text = "Популярные новинки:\n\n"
+    for game in games[:5]:
+        text += (
+            f"<a href='{game['url']}'>{game['name']}</a>\n"
+            f"{game['price']}\n\n"
+        )
+
+    await message.answer(text, parse_mode="HTML")
+
+
+# команда /discount 
+@dp.message(Command("discount"))
+async def discounts(message: types.Message):
+    games = await get_featured_games("specials")
+
+    text = "Скидки в Steam:\n\n"
+    for game in games[:5]:
+        text += (
+            f"<a href='{game['url']}'>{game['name']}</a>\n"
+            f"{game['discount_percent']}% — {game['price']}\n\n"
+        )
+
+    await message.answer(text, parse_mode="HTML")
+
+# использование steam api для получения нужных данных и вывода игр
+# для каждой команды отправляем запрос к стиму и выводим полученные данные
+
+# игры по жанру
+async def get_games_by_genre(tag):
+
+    params = {
+        "tags": tag,
+        "cc": "ru",
+        "l": "russian",
+        "page": 1
+    }
+
+    # отправление самого запроса
+    async with aiohttp.ClientSession() as session:
+        async with session.get(STEAM_SEARCH_URL, params=params) as resp:
+            data = await resp.json()
+
+    games = []
+
+    # чтобы не нагромождать бота информацией, я решила взять только пять игр в каждом жанре
+    
+    for item in data.get("items", [])[:5]:
+        price = "Бесплатно" # для бесплатных продуктов
+
+        if item.get("price"):
+            price = f"{item['price']['final'] // 100} ₽" # для платных продуктов; на сто делила, потому что изначально программа почему-то берёт цену в копейках, а не в рублях
+
+        appid = item["id"]  # айди игры 
+
+        games.append({
+            "name": item["name"],
+            "price": price,
+            "url": f"https://store.steampowered.com/app/{appid}"
+        }) 
+
+    return games
+
+
+# новинки и скидки
+
+# тут с запросом всё то же самое
+async def get_featured_games(category):
+    async with aiohttp.ClientSession() as session:
+        async with session.get(STEAM_FEATURED_URL) as resp:
+            data = await resp.json()
+
+    games = []
+
+    for item in data[category]["items"]:
+        price = "Бесплатно" # аналогично жанрам для бесплатных игр
+
+        if item.get("final_price"):
+            price = f"{item['final_price'] // 100} ₽" # аналогично жанрам для игр, цена которых почему-то выводится в копейках
+
+        appid = item["id"] # снова айди в стиме
+
+        games.append({
+            "name": item["name"],
+            "price": price,
+            "discount_percent": item.get("discount_percent", 0),
+            "url": f"https://store.steampowered.com/app/{appid}"
+        })
+
+    return games
+
+
+# основная часьб закончена, ниже уже только запуск
+
+# запуск самого бота
+async def main():
+    await dp.start_polling(bot)
+
+# запус программы
+if __name__ == "__main__":
+    asyncio.run(main())

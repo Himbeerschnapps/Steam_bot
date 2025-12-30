@@ -1,9 +1,10 @@
 import asyncio                  # запуск асинхронного кода
 import aiohttp                  # запросы к steam api
 import aiogram                  # для самого бота
-from aiogram import Bot, Dispatcher, Types
+from aiogram import Bot, Dispatcher
 from aiogram.filters import Command
-from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
+
 
 # для управления бото (токен взят у botfather в тг)
 BOT_TOKEN = "8089522459:AAGhQWkbu0x3ZUL66CbNPr9CoHSwrh_oQns"
@@ -36,7 +37,7 @@ GENRES = {
 
 # /start — приветствует пользователя и объясняет функционал бота
 @dp.message(Command("start"))
-async def start(message: types.Message):
+async def start(message: Message):
     await message.answer(
         "Привет! Это бот-помощник для каждого, кто не определился, во что поиграть вечером, хочет узнать о горячих новинках игровой индустрии или узнать о столь желанных скидках.\n\n"
         "Что можно получить от бота:\n"
@@ -49,7 +50,7 @@ async def start(message: types.Message):
 
 # /help — выводит перечень команд бота
 @dp.message(Command("help"))
-async def help_cmd(message: types.Message):
+async def help_cmd(message: Message):
     await message.answer(
         "/start — запуск бота\n"
         "/help — список команд\n"
@@ -67,7 +68,7 @@ async def help_cmd(message: types.Message):
 # только на этапе конечной выверки я заметила, что допустила грамматическую ошибку, но решила, что лучше уже это не трогать
 
 @dp.message(Command("recomendations"))
-async def recomendations(message: types.Message):
+async def recomendations(message: Message):
     keyboard = InlineKeyboardMarkup(
         inline_keyboard=[
             [InlineKeyboardButton(text=genre, callback_data=tag)]
@@ -79,7 +80,7 @@ async def recomendations(message: types.Message):
 
 
 @dp.callback_query()
-async def genre_selected(callback: types.CallbackQuery):
+async def genre_selected(callback: CallbackQuery):
     tag = callback.data                    
     games = await get_games_by_genre(tag)  
 
@@ -101,7 +102,7 @@ async def genre_selected(callback: types.CallbackQuery):
 
 # команда /new 
 @dp.message(Command("new"))
-async def new_games(message: types.Message):
+async def new_games(message: Message):
     games = await get_featured_games("new_releases")
 
     text = "Популярные новинки:\n\n"
@@ -116,7 +117,7 @@ async def new_games(message: types.Message):
 
 # команда /discount 
 @dp.message(Command("discount"))
-async def discounts(message: types.Message):
+async def discounts(message: Message):
     games = await get_featured_games("specials")
 
     text = "Скидки в Steam:\n\n"
